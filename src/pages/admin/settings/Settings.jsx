@@ -1,8 +1,31 @@
 import React, { useEffect, useState } from "react";
-import { X, User, Lock, Mail, Camera, ShieldCheck, CheckCircle2 } from "lucide-react";
+import {
+  X,
+  User,
+  Lock,
+  Mail,
+  Camera,
+  ShieldCheck,
+  CheckCircle2,
+} from "lucide-react";
 import { updateAdminProfileAPI } from "@/services/allApis";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+
+/* =========================
+   ENV CONFIG
+========================= */
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const UPLOADS_URL = `${BASE_URL}/uploads`;
+
+/* =========================
+   IMAGE HELPER
+========================= */
+const getImageUrl = (img) => {
+  if (!img) return "";
+  if (img.startsWith("http")) return img;
+  return `${UPLOADS_URL}/${img.replace(/^uploads\//, "")}`;
+};
 
 const Settings = () => {
   const navigate = useNavigate();
@@ -35,9 +58,9 @@ const Settings = () => {
     }));
 
     if (admin.profile) {
-      setPreview(`http://localhost:4000/uploads/${admin.profile}`);
+      setPreview(getImageUrl(admin.profile));
     }
-  }, []);
+  }, [admin, navigate]);
 
   /* =========================
       UPDATE PROFILE
@@ -79,9 +102,8 @@ const Settings = () => {
           confirmPassword: "",
         });
 
-        if (res.data.profile) {
-          setPreview(`http://localhost:4000/uploads/${res.data.profile}`);
-        }
+        setPreview(getImageUrl(res.data.profile));
+        setProfileImage(null);
       }
     } catch (err) {
       toast.error("Profile update failed");
@@ -101,145 +123,89 @@ const Settings = () => {
       </div>
 
       <div className="max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* LEFT COL: MINI PROFILE CARD */}
+        {/* PROFILE CARD */}
         <div className="bg-white rounded-[2.5rem] border border-[#F2EDE4] p-8 flex flex-col items-center text-center shadow-sm">
           <div className="relative group">
-            <div className="w-32 h-32 rounded-full p-1 border-2 border-[#C5A059] mb-4 flex items-center justify-center bg-[#FDF9F0] overflow-hidden">
+            <div className="w-32 h-32 rounded-full p-1 border-2 border-[#C5A059] mb-4 bg-[#FDF9F0] overflow-hidden">
               {preview ? (
                 <img
                   src={preview}
-                  className="w-full h-full rounded-full object-cover shadow-inner transition-transform group-hover:scale-110 duration-500"
+                  className="w-full h-full rounded-full object-cover transition-transform group-hover:scale-110"
                   alt="Admin"
                 />
               ) : (
-                <div className="flex flex-col items-center justify-center text-[#C5A059]/40">
-                  <User size={48} strokeWidth={1.5} />
-                  <span className="text-[8px] font-black uppercase tracking-tighter mt-1">
-                    No Image
-                  </span>
-                </div>
+                <User size={48} className="text-[#C5A059]/40 mx-auto mt-8" />
               )}
             </div>
-            <div className="absolute bottom-6 right-0 bg-[#1A1A1A] text-white p-2 rounded-full border-2 border-white shadow-lg">
+            <div className="absolute bottom-6 right-0 bg-black text-white p-2 rounded-full">
               <ShieldCheck size={14} />
             </div>
           </div>
-          <h3 className="text-xl font-bold text-[#1A1A1A]">{admin?.username}</h3>
-          <p className="text-[10px] font-black text-[#C5A059] uppercase tracking-widest mt-1">
+
+          <h3 className="text-xl font-bold">{admin?.username}</h3>
+          <p className="text-[10px] font-black text-[#C5A059] uppercase tracking-widest">
             Super Admin
           </p>
 
-          <div className="w-full h-[1px] bg-[#F2EDE4] my-6" />
+          <div className="w-full h-px bg-[#F2EDE4] my-6" />
 
-          <div className="flex flex-col gap-3 w-full">
-            <button
-              onClick={() => setShowEditModal(true)}
-              className="w-full bg-[#1A1A1A] hover:bg-black text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all shadow-md active:scale-95"
-            >
-              Edit Identity
-            </button>
-            <button
-              onClick={() => setShowPasswordModal(true)}
-              className="w-full bg-white border border-[#F2EDE4] hover:border-[#C5A059] text-gray-600 py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
-            >
-              Security Keys
-            </button>
-          </div>
+          <button
+            onClick={() => setShowEditModal(true)}
+            className="w-full bg-black text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest mb-3"
+          >
+            Edit Identity
+          </button>
+
+          <button
+            onClick={() => setShowPasswordModal(true)}
+            className="w-full border border-[#F2EDE4] py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest"
+          >
+            Security Keys
+          </button>
         </div>
 
-        {/* RIGHT COL: CREDENTIAL DETAILS */}
-        <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white rounded-[2.5rem] border border-[#F2EDE4] p-10 shadow-sm h-full">
-            <div className="flex items-center gap-3 mb-10">
-              <CheckCircle2 className="text-[#C5A059]" size={20} />
-              <h3 className="text-[11px] font-black text-gray-400 uppercase tracking-[0.3em]">
-                Verified Credentials
-              </h3>
-            </div>
-
-            <div className="space-y-10">
-              <div className="flex items-start gap-6">
-                <div className="bg-[#FDF9F0] p-4 rounded-2xl text-[#C5A059]">
-                  <User size={20} />
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">
-                    Administrative Alias
-                  </label>
-                  <p className="text-lg font-bold text-[#1A1A1A]">
-                    {admin?.username}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-6">
-                <div className="bg-[#FDF9F0] p-4 rounded-2xl text-[#C5A059]">
-                  <Mail size={20} />
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">
-                    System Email Address
-                  </label>
-                  <p className="text-lg font-bold text-[#1A1A1A]">
-                    {admin?.email}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-6">
-                <div className="bg-[#FDF9F0] p-4 rounded-2xl text-[#C5A059]">
-                  <Lock size={20} />
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">
-                    Access Protocol
-                  </label>
-                  <p className="text-lg font-bold text-[#1A1A1A]">••••••••••••</p>
-                </div>
-              </div>
-            </div>
+        {/* DETAILS */}
+        <div className="lg:col-span-2 bg-white rounded-[2.5rem] border border-[#F2EDE4] p-10 shadow-sm">
+          <div className="flex items-center gap-3 mb-10">
+            <CheckCircle2 className="text-[#C5A059]" />
+            <h3 className="text-[11px] font-black uppercase tracking-[0.3em] text-gray-400">
+              Verified Credentials
+            </h3>
           </div>
+
+          <InfoRow icon={<User />} label="Admin Alias" value={admin?.username} />
+          <InfoRow icon={<Mail />} label="Email" value={admin?.email} />
+          <InfoRow icon={<Lock />} label="Password" value="••••••••••••" />
         </div>
       </div>
 
-      {/* MODAL: EDIT IDENTITY */}
+      {/* EDIT MODAL */}
       {showEditModal && (
         <Modal title="Refine Identity" onClose={() => setShowEditModal(false)}>
           <div className="space-y-6">
-            <div className="flex justify-center mb-6">
-              <label className="relative cursor-pointer group">
-                <div className="w-24 h-24 rounded-3xl border-2 border-dashed border-[#C5A059]/30 bg-[#FDFCFB] flex items-center justify-center overflow-hidden transition-all group-hover:border-[#C5A059]">
-                  {preview ? (
-                    <img
-                      src={preview}
-                      className="w-full h-full object-cover opacity-80 group-hover:opacity-40 transition-all"
-                    />
-                  ) : (
-                    <User
-                      size={32}
-                      className="text-[#C5A059]/30 group-hover:text-[#C5A059]"
-                    />
-                  )}
-                  <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all bg-black/10">
-                    <Camera className="text-[#1A1A1A]" size={20} />
-                  </div>
-                </div>
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files[0]) {
-                      setProfileImage(e.target.files[0]);
-                      setPreview(URL.createObjectURL(e.target.files[0]));
-                    }
-                  }}
-                />
-              </label>
-            </div>
+            <label className="block text-center cursor-pointer">
+              <div className="w-24 h-24 mx-auto rounded-3xl border border-dashed flex items-center justify-center overflow-hidden">
+                {preview ? (
+                  <img src={preview} className="w-full h-full object-cover" />
+                ) : (
+                  <Camera className="text-gray-300" />
+                )}
+              </div>
+              <input
+                type="file"
+                hidden
+                accept="image/*"
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    setProfileImage(e.target.files[0]);
+                    setPreview(URL.createObjectURL(e.target.files[0]));
+                  }
+                }}
+              />
+            </label>
 
             <Input
-              label="Update Username"
+              label="Username"
               value={profileData.username}
               onChange={(e) =>
                 setProfileData({ ...profileData, username: e.target.value })
@@ -248,7 +214,7 @@ const Settings = () => {
 
             <button
               onClick={handleUpdateProfile}
-              className="w-full bg-[#1A1A1A] text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest mt-4 shadow-lg shadow-gray-200 hover:bg-black transition-all"
+              className="w-full bg-black text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest"
             >
               Confirm Changes
             </button>
@@ -256,38 +222,34 @@ const Settings = () => {
         </Modal>
       )}
 
-      {/* MODAL: CHANGE PASSWORD */}
+      {/* PASSWORD MODAL */}
       {showPasswordModal && (
         <Modal title="Secure Access" onClose={() => setShowPasswordModal(false)}>
-          <div className="space-y-5">
-            <Input
-              label="New Security Key"
-              type="password"
-              placeholder="••••••••"
-              value={profileData.password}
-              onChange={(e) =>
-                setProfileData({ ...profileData, password: e.target.value })
-              }
-            />
-            <Input
-              label="Verify Security Key"
-              type="password"
-              placeholder="••••••••"
-              value={profileData.confirmPassword}
-              onChange={(e) =>
-                setProfileData({
-                  ...profileData,
-                  confirmPassword: e.target.value,
-                })
-              }
-            />
-            <button
-              onClick={handleUpdateProfile}
-              className="w-full bg-[#C5A059] text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest mt-4 shadow-lg shadow-[#C5A059]/20 hover:bg-[#B48A30] transition-all"
-            >
-              Update Protocol
-            </button>
-          </div>
+          <Input
+            label="New Password"
+            type="password"
+            value={profileData.password}
+            onChange={(e) =>
+              setProfileData({ ...profileData, password: e.target.value })
+            }
+          />
+          <Input
+            label="Confirm Password"
+            type="password"
+            value={profileData.confirmPassword}
+            onChange={(e) =>
+              setProfileData({
+                ...profileData,
+                confirmPassword: e.target.value,
+              })
+            }
+          />
+          <button
+            onClick={handleUpdateProfile}
+            className="w-full bg-[#C5A059] text-white py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest mt-4"
+          >
+            Update Protocol
+          </button>
         </Modal>
       )}
     </div>
@@ -298,18 +260,27 @@ const Settings = () => {
     REUSABLE COMPONENTS
 ========================= */
 
+const InfoRow = ({ icon, label, value }) => (
+  <div className="flex items-start gap-6 mb-8">
+    <div className="bg-[#FDF9F0] p-4 rounded-2xl text-[#C5A059]">{icon}</div>
+    <div>
+      <p className="text-[9px] font-black uppercase tracking-widest text-gray-400">
+        {label}
+      </p>
+      <p className="text-lg font-bold">{value}</p>
+    </div>
+  </div>
+);
+
 const Modal = ({ title, onClose, children }) => (
-  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-    <div className="bg-white w-full max-w-[440px] rounded-[3rem] shadow-2xl overflow-hidden border border-[#F2EDE4] animate-in zoom-in duration-300">
-      <div className="bg-[#FDF9F0] p-8 flex justify-between items-center border-b border-[#F2EDE4]">
-        <h2 className="text-[10px] font-black text-[#C5A059] uppercase tracking-[0.3em]">
+  <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+    <div className="bg-white w-full max-w-md rounded-[3rem] overflow-hidden shadow-2xl">
+      <div className="p-8 flex justify-between items-center border-b">
+        <h2 className="text-[10px] font-black uppercase tracking-[0.3em] text-[#C5A059]">
           {title}
         </h2>
-        <button
-          onClick={onClose}
-          className="p-2 hover:bg-white rounded-full text-gray-400 transition-colors"
-        >
-          <X size={20} />
+        <button onClick={onClose}>
+          <X />
         </button>
       </div>
       <div className="p-10">{children}</div>
@@ -318,13 +289,13 @@ const Modal = ({ title, onClose, children }) => (
 );
 
 const Input = ({ label, ...props }) => (
-  <div className="space-y-2">
-    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">
+  <div className="space-y-2 mb-4">
+    <label className="text-[9px] font-black uppercase tracking-widest text-gray-400">
       {label}
     </label>
     <input
       {...props}
-      className="w-full bg-[#FDFCFB] border border-[#F2EDE4] rounded-xl px-5 py-4 text-sm focus:outline-none focus:border-[#C5A059] transition-all placeholder:text-gray-200"
+      className="w-full px-5 py-4 border rounded-xl bg-[#FDFCFB]"
     />
   </div>
 );
