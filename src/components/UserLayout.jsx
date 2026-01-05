@@ -17,18 +17,17 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { useState, useEffect } from "react";
-
-// ✅ UPDATED UPLOAD URL FOR PRODUCTION/LOCAL FLEXIBILITY
-const UPLOADS_URL = "http://localhost:4000/uploads";
+import { BASE_URL } from "@/services/serverURL"; // ✅ Logic from snippet 1
 
 /* =========================
-   IMAGE HELPER (FROM SNIPPET 1)
-   Handles both full URLs and local server paths
+   IMAGE HELPER
+   - Handles external URLs and local uploads
 ========================= */
 const getImageUrl = (image) => {
   if (!image) return null;
   if (image.startsWith("http")) return image;
-  return `${UPLOADS_URL}/${image.replace(/^uploads\//, "")}`;
+  // ✅ Robust replacement logic from snippet 1
+  return `${BASE_URL}/uploads/${image.replace(/^uploads\//, "")}`;
 };
 
 const UserLayout = () => {
@@ -37,14 +36,16 @@ const UserLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // ✅ GET LOGGED IN USER
+  // ✅ Get user from session storage
   const user = JSON.parse(sessionStorage.getItem("existingUser"));
 
-  // ✅ UPDATED PROFILE IMAGE LOGIC
+  // ✅ Computed Profile Data
   const profileImage = getImageUrl(user?.profile);
-  const userInitial = user?.username?.charAt(0).toUpperCase() || "U";
+  const userInitial = user?.username?.charAt(0)?.toUpperCase() || "U";
 
-  // Scroll effect for header
+  /* =========================
+     SIDE EFFECTS
+  ========================= */
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
@@ -63,7 +64,7 @@ const UserLayout = () => {
 
   return (
     <div className="flex flex-col min-h-screen bg-[#FDFCFB]">
-      {/* HEADER */}
+      {/* ================= HEADER ================= */}
       <header
         className={`fixed top-0 left-0 w-full z-[100] transition-all duration-500 ${
           scrolled
@@ -122,7 +123,7 @@ const UserLayout = () => {
                 >
                   Login
                 </Link>
-                <Link to="/signup" className="relative group">
+                <Link to="/signup">
                   <button className="bg-[#C5A059] text-black px-8 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-transform active:scale-95">
                     Join Now
                   </button>
@@ -135,7 +136,6 @@ const UserLayout = () => {
                   className="flex items-center gap-3 bg-white/5 hover:bg-white/10 backdrop-blur-md p-1.5 pr-5 rounded-full border border-white/10 transition-all active:scale-95"
                 >
                   <div className="relative">
-                    {/* ✅ INTEGRATED IMAGE LOGIC WITH ERROR HANDLING */}
                     {profileImage ? (
                       <img
                         src={profileImage}
@@ -151,10 +151,10 @@ const UserLayout = () => {
                         {userInitial}
                       </div>
                     )}
-                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-black rounded-full"></div>
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-500 border-2 border-black rounded-full" />
                   </div>
                   <span className="text-[10px] font-black uppercase tracking-widest text-white">
-                    {user.username.split(" ")[0]}
+                    {user.username?.split(" ")[0]}
                   </span>
                   <ChevronDown
                     size={12}
@@ -164,7 +164,7 @@ const UserLayout = () => {
                   />
                 </button>
 
-                {/* DROPDOWN */}
+                {/* DROPDOWN MENU */}
                 {openProfile && (
                   <>
                     <div
@@ -187,13 +187,13 @@ const UserLayout = () => {
                           className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl hover:bg-[#C5A059] hover:text-white text-[10px] font-black uppercase tracking-widest transition-all group"
                         >
                           <div className="p-2 rounded-lg bg-[#C5A059]/10 text-[#C5A059] group-hover:bg-white/20 group-hover:text-white transition-colors">
-                            {user?.role === "admin" ? (
+                            {user.role === "admin" ? (
                               <LayoutDashboard size={16} />
                             ) : (
                               <User size={16} />
                             )}
                           </div>
-                          {user?.role === "admin" ? "Admin Panel" : "My Profile"}
+                          {user.role === "admin" ? "Admin Panel" : "My Profile"}
                         </button>
 
                         <button
@@ -213,7 +213,7 @@ const UserLayout = () => {
             )}
           </div>
 
-          {/* MOBILE TOGGLE */}
+          {/* MOBILE MENU TOGGLE */}
           <div className="md:hidden">
             <Sheet>
               <SheetTrigger asChild>
@@ -237,7 +237,11 @@ const UserLayout = () => {
                       <div className="flex items-center gap-4 p-6 bg-white/5 rounded-[2rem] border border-white/10 mb-8">
                         <div className="w-14 h-14 rounded-2xl overflow-hidden bg-[#C5A059] flex items-center justify-center font-black text-black text-xl">
                           {profileImage ? (
-                            <img src={profileImage} className="w-full h-full object-cover" alt="mobile-profile" />
+                            <img
+                              src={profileImage}
+                              className="w-full h-full object-cover"
+                              alt="mobile-profile"
+                            />
                           ) : (
                             userInitial
                           )}
@@ -268,7 +272,7 @@ const UserLayout = () => {
                             onClick={handleProfileRedirect}
                             className="w-full text-left px-6 py-4 bg-white/5 rounded-2xl font-bold flex items-center justify-between"
                           >
-                            Access Dashboard{" "}
+                            Access Dashboard
                             <ChevronDown
                               size={18}
                               className="-rotate-90 text-[#C5A059]"
@@ -298,12 +302,12 @@ const UserLayout = () => {
         </div>
       </header>
 
-      {/* MAIN CONTENT AREA */}
+      {/* ================= MAIN CONTENT ================= */}
       <main className="flex-1">
         <Outlet />
       </main>
 
-      {/* FOOTER */}
+      {/* ================= FOOTER ================= */}
       <footer className="bg-[#050505] border-t border-white/5 pt-20 pb-10">
         <div className="container mx-auto px-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-10">
@@ -317,16 +321,16 @@ const UserLayout = () => {
             </div>
 
             <div className="flex gap-8 text-[9px] font-black uppercase tracking-[0.2em] text-gray-400">
-              <Link to="/contact" className="hover:text-white transition-colors">
+              <Link to="/" className="hover:text-white transition-colors">
                 Privacy Policy
               </Link>
-              <Link to="/contact" className="hover:text-white transition-colors">
+              <Link to="/" className="hover:text-white transition-colors">
                 Terms of Service
               </Link>
             </div>
 
             <p className="text-[9px] text-gray-600 font-bold uppercase tracking-widest">
-              © 2024 Rentora. All rights reserved.
+              © 2026 Rentora. All rights reserved.
             </p>
           </div>
         </div>

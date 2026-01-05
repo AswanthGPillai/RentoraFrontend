@@ -5,10 +5,10 @@ import {
   Mail, Info, Camera, Calendar, Send, CheckCircle, 
   Archive, User, LayoutDashboard, Settings
 } from "lucide-react";
-import axios from "axios";
 
-const serverURL = "http://localhost:4000/api";
-const UPLOADS_URL = "http://localhost:4000/uploads";
+// ✅ Re-integrated your specific services
+import commonApi from "@/services/commonApi";
+import { serverURL, BASE_URL } from "@/services/serverURL";
 
 /* =========================
    IMAGE HELPER
@@ -16,7 +16,8 @@ const UPLOADS_URL = "http://localhost:4000/uploads";
 const getImageUrl = (image) => {
   if (!image) return "https://via.placeholder.com/800x400?text=No+Image";
   if (image.startsWith("http")) return image;
-  return `${UPLOADS_URL}/${image.replace(/^uploads\//, "")}`;
+  // ✅ Matches the first snippet's regex logic
+  return `${BASE_URL}/uploads/${image.replace(/^uploads\//, "")}`;
 };
 
 const ProfilePage = () => {
@@ -33,7 +34,7 @@ const ProfilePage = () => {
   const [newProfileImg, setNewProfileImg] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   
-  // ✅ Complaint logic: State PER booking ID
+  // Complaint logic: State PER booking ID
   const [complaintForms, setComplaintForms] = useState({});
   const [complaintStatus, setComplaintStatus] = useState({ 
     loading: false, 
@@ -54,12 +55,15 @@ const ProfilePage = () => {
     fetchBookings();
   }, [token, navigate]);
 
+  /* =========================
+      FETCH BOOKINGS (Logic from 1)
+  ========================= */
   const fetchBookings = async () => {
     try {
-      const res = await axios.get(`${serverURL}/bookings/user`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      setBookings(res.data || []);
+      const res = await commonApi("get", `${serverURL}/bookings/user`);
+      if (res.status === 200) {
+        setBookings(res.data || []);
+      }
     } catch (err) {
       console.error("Fetch booking error:", err.message);
     }
@@ -69,7 +73,7 @@ const ProfilePage = () => {
   const terminatedBookings = bookings.filter(b => b.status === "Cancelled");
 
   /* =========================
-      CORE FUNCTIONS
+      PROFILE IMAGE
   ========================= */
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -79,45 +83,57 @@ const ProfilePage = () => {
     }
   };
 
+  /* =========================
+      UPDATE PROFILE (Logic from 1)
+  ========================= */
   const handleUpdateProfile = async () => {
     if (passwords.password && passwords.password !== passwords.confirmPassword) {
       return alert("Passwords do not match");
     }
+    
     try {
       const formData = new FormData();
       formData.append("username", user.username);
       if (passwords.password) formData.append("password", passwords.password);
       if (newProfileImg) formData.append("profile", newProfileImg);
 
-      const res = await axios.put(`${serverURL}/user-profile-update`, formData, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await commonApi(
+        "put",
+        `${serverURL}/user-profile-update`,
+        formData,
+        { "Content-Type": "multipart/form-data" }
+      );
 
-      sessionStorage.setItem("existingUser", JSON.stringify(res.data));
-      setUser(res.data);
-      setEditOpen(false);
-      setPasswords({ password: "", confirmPassword: "" });
-      setPreviewUrl(null);
-      alert("Profile updated successfully");
+      if (res.status === 200) {
+        sessionStorage.setItem("existingUser", JSON.stringify(res.data));
+        setUser(res.data);
+        setEditOpen(false);
+        setPasswords({ password: "", confirmPassword: "" });
+        setPreviewUrl(null);
+        alert("Profile updated successfully");
+      }
     } catch (err) {
       alert("Update failed");
     }
   };
 
+  /* =========================
+      CANCEL BOOKING (Logic from 1)
+  ========================= */
   const handleCancelBooking = async (bookingId) => {
-    if (!window.confirm("Are you sure you want to terminate this lease? It will be moved to history.")) return;
+    if (!window.confirm("Are you sure you want to terminate this lease?")) return;
     try {
-      await axios.delete(`${serverURL}/bookings/${bookingId}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      fetchBookings();
+      const res = await commonApi("delete", `${serverURL}/bookings/${bookingId}`);
+      if (res.status === 200 || res.status === 204) {
+        fetchBookings();
+      }
     } catch (err) {
       alert("Cancellation failed");
     }
   };
 
   /* =========================
-      ✅ INTEGRATED COMPLAINT LOGIC
+      COMPLAINT SUBMIT (Logic from 1)
   ========================= */
   const handleComplaintSubmit = async (e, booking) => {
     e.preventDefault();
@@ -130,32 +146,30 @@ const ProfilePage = () => {
     setComplaintStatus({ loading: true, success: false, activeId: booking._id });
 
     try {
-      await axios.post(`${serverURL}/complaints`, 
-        { 
-          bookingId: booking._id, 
-          roomId: booking.roomId?._id,
-          title: form.title, 
-          message: form.message 
-        },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      setComplaintStatus({ loading: false, success: true, activeId: booking._id });
-
-      // Clear ONLY this card's form
-      setComplaintForms(prev => {
-        const copy = { ...prev };
-        delete copy[booking._id];
-        return copy;
+      const res = await commonApi("post", `${serverURL}/complaints`, { 
+        bookingId: booking._id, 
+        roomId: booking.roomId?._id,
+        title: form.title, 
+        message: form.message 
       });
 
-      // Reset success status after delay
-      setTimeout(() => {
-        setComplaintStatus({ loading: false, success: false, activeId: null });
-      }, 3000);
+      if (res.status === 200 || res.status === 201) {
+        setComplaintStatus({ loading: false, success: true, activeId: booking._id });
 
+        // Clear ONLY this card's form
+        setComplaintForms(prev => {
+          const copy = { ...prev };
+          delete copy[booking._id];
+          return copy;
+        });
+
+        // Reset success status after delay
+        setTimeout(() => {
+          setComplaintStatus({ loading: false, success: false, activeId: null });
+        }, 3000);
+      }
     } catch (err) {
-      alert("Failed to send complaint. Please try again.");
+      alert("Failed to send complaint.");
       setComplaintStatus({ loading: false, success: false, activeId: null });
     }
   };
@@ -173,7 +187,6 @@ const ProfilePage = () => {
         <div className="max-w-7xl mx-auto px-6 h-24 flex justify-between items-center">
           <div className="flex items-center gap-8">
             <Link to="/" className="text-2xl font-black tracking-tighter flex items-center gap-2">
-              
               <span>RENT<span className="text-[#C5A059] font-light">ORA</span></span>
             </Link>
             
@@ -285,7 +298,7 @@ const ProfilePage = () => {
                       </div>
                     </div>
 
-                    {/* ✅ COMPLAINT FORM (Per-Booking State) */}
+                    {/* COMPLAINT FORM */}
                     <div className="pt-10 border-t border-gray-100">
                       <div className="flex items-center gap-3 mb-8">
                         <div className="w-2 h-2 rounded-full bg-[#C5A059]"></div>

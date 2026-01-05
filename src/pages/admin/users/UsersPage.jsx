@@ -1,7 +1,28 @@
 import React, { useEffect, useState } from "react";
-import { Trash2, Search, User, Mail, ShieldAlert, Loader2 } from "lucide-react";
+import {
+  Trash2,
+  Search,
+  User,
+  Mail,
+  ShieldAlert,
+  Loader2,
+} from "lucide-react";
 import { getAllUsersAPI, deleteUserAPI } from "@/services/allApis";
 import { toast } from "react-toastify";
+import { BASE_URL } from "@/services/serverURL";
+
+/* ==========================================================
+   HELPER: IMAGE URL RESOLVER
+   Handles external URLs, local uploads, and formatting.
+========================================================== */
+const getImageUrl = (image) => {
+  if (!image) return null;
+  // If it's a full URL (like Google Auth profile pics)
+  if (image.startsWith("http")) return image;
+  // If it's a local upload, ensure the path is clean
+  const cleanPath = image.replace(/^uploads\//, "");
+  return `${BASE_URL}/uploads/${cleanPath}`;
+};
 
 const UsersPage = () => {
   const [users, setUsers] = useState([]);
@@ -12,6 +33,9 @@ const UsersPage = () => {
     fetchUsers();
   }, []);
 
+  /* =========================
+      FETCH USERS
+  ========================= */
   const fetchUsers = async () => {
     setLoading(true);
     try {
@@ -21,26 +45,34 @@ const UsersPage = () => {
       }
     } catch (err) {
       console.error("Server error", err);
-      toast.error("Failed to load users");
+      toast.error("Failed to load user directory");
     } finally {
       setLoading(false);
     }
   };
 
+  /* =========================
+      DELETE USER
+  ========================= */
   const handleDelete = async (id) => {
-  if (!window.confirm("Permanent Action: Are you sure you want to delete this user?")) return;
+    if (!window.confirm("Permanent Action: Are you sure you want to delete this user?")) return;
 
-  const res = await deleteUserAPI(id);
+    try {
+      const res = await deleteUserAPI(id);
+      if (res?.status === 200) {
+        toast.success("User removed from records");
+        setUsers((prev) => prev.filter((u) => u._id !== id));
+      } else {
+        toast.error(res?.data?.message || "Unable to delete user");
+      }
+    } catch (error) {
+      toast.error("An error occurred during deletion");
+    }
+  };
 
-  if (res?.status === 200) {
-    toast.success("User removed from records");
-    setUsers((prev) => prev.filter((u) => u._id !== id));
-  } else {
-    toast.error(res?.data?.message || "Unable to delete user");
-  }
-};
-
-
+  /* =========================
+      SEARCH FILTER
+  ========================= */
   const filteredUsers = users.filter(
     (u) =>
       u.username?.toLowerCase().includes(search.toLowerCase()) ||
@@ -60,9 +92,12 @@ const UsersPage = () => {
           </h1>
         </div>
 
-        {/* STYLISH SEARCH BAR */}
+        {/* SEARCH BAR */}
         <div className="relative group w-full md:w-80">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#C5A059] transition-colors" size={18} />
+          <Search 
+            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#C5A059] transition-colors" 
+            size={18} 
+          />
           <input
             type="text"
             placeholder="Search credentials..."
@@ -73,7 +108,7 @@ const UsersPage = () => {
         </div>
       </div>
 
-      {/* DATA TABLE */}
+      {/* DATA TABLE CONTAINER */}
       <div className="bg-white rounded-[2.5rem] border border-[#F2EDE4] shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-20 flex flex-col items-center justify-center text-gray-400">
@@ -86,7 +121,7 @@ const UsersPage = () => {
               <thead>
                 <tr className="bg-[#FDF9F0]/50 border-b border-[#F2EDE4]">
                   <th className="p-6 text-[10px] font-black text-[#C5A059] uppercase tracking-widest">Member Profile</th>
-                  <th className="p-6 text-[10px] font-black text-[#C5A059] uppercase tracking-widest">Contact Information</th>
+                  <th className="p-6 text-[10px] font-black text-[#C5A059] uppercase tracking-widest">Contact Info</th>
                   <th className="p-6 text-[10px] font-black text-[#C5A059] uppercase tracking-widest text-center">Status</th>
                   <th className="p-6 text-[10px] font-black text-[#C5A059] uppercase tracking-widest text-right">Actions</th>
                 </tr>
@@ -94,59 +129,66 @@ const UsersPage = () => {
 
               <tbody className="divide-y divide-[#F2EDE4]">
                 {filteredUsers.length > 0 ? (
-                  filteredUsers.map((user) => (
-                    <tr key={user._id} className="hover:bg-[#FDFCFB] transition-colors group">
-                      {/* USER INFO */}
-                      <td className="p-6">
-                        <div className="flex items-center gap-4">
-                          <div className="relative">
-                            <div className="w-12 h-12 rounded-2xl border border-[#F2EDE4] overflow-hidden bg-[#FDF9F0] flex items-center justify-center">
-                              {user.profile ? (
-                                <img
-                                  src={`http://localhost:4000/uploads/${user.profile}`}
-                                  className="w-full h-full object-cover"
-                                  alt=""
-                                />
-                              ) : (
-                                <User className="text-[#C5A059]/40" size={20} />
-                              )}
+                  filteredUsers.map((user) => {
+                    const avatar = getImageUrl(user.profile);
+                    
+                    return (
+                      <tr key={user._id} className="hover:bg-[#FDFCFB] transition-colors group">
+                        {/* USER INFO */}
+                        <td className="p-6">
+                          <div className="flex items-center gap-4">
+                            <div className="relative">
+                              <div className="w-12 h-12 rounded-2xl border border-[#F2EDE4] overflow-hidden bg-[#FDF9F0] flex items-center justify-center">
+                                {avatar ? (
+                                  <img
+                                    src={avatar}
+                                    className="w-full h-full object-cover"
+                                    alt={user.username}
+                                    referrerPolicy="no-referrer"
+                                    onError={(e) => (e.currentTarget.style.display = "none")}
+                                  />
+                                ) : (
+                                  <User className="text-[#C5A059]/40" size={20} />
+                                )}
+                              </div>
+                              {/* Status Indicator Dot */}
+                              <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
                             </div>
-                            <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-500 border-2 border-white rounded-full"></div>
+                            <div>
+                              <p className="font-bold text-[#1A1A1A] text-base">{user.username}</p>
+                              <p className="text-[9px] font-black text-[#C5A059] uppercase tracking-tighter">Verified Member</p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-bold text-[#1A1A1A] text-base">{user.username}</p>
-                            <p className="text-[9px] font-black text-[#C5A059] uppercase tracking-tighter">Verified Member</p>
+                        </td>
+
+                        {/* EMAIL */}
+                        <td className="p-6">
+                          <div className="flex items-center gap-2 text-gray-500">
+                            <Mail size={14} className="text-[#C5A059]/60" />
+                            <span className="text-sm font-medium">{user.email}</span>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* EMAIL */}
-                      <td className="p-6">
-                        <div className="flex items-center gap-2 text-gray-500">
-                          <Mail size={14} className="text-[#C5A059]/60" />
-                          <span className="text-sm font-medium">{user.email}</span>
-                        </div>
-                      </td>
+                        {/* STATUS TAG */}
+                        <td className="p-6 text-center">
+                          <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-50 text-green-600 text-[10px] font-bold uppercase tracking-wide">
+                            Active
+                          </span>
+                        </td>
 
-                      {/* STATUS TAG */}
-                      <td className="p-6 text-center">
-                        <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-50 text-green-600 text-[10px] font-bold uppercase tracking-wide">
-                          Active
-                        </span>
-                      </td>
-
-                      {/* DELETE ACTION */}
-                      <td className="p-6 text-right">
-                        <button
-                          onClick={() => handleDelete(user._id)}
-                          className="p-3 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all active:scale-90"
-                          title="Revoke Access"
-                        >
-                          <Trash2 size={18} strokeWidth={2} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                        {/* DELETE ACTION */}
+                        <td className="p-6 text-right">
+                          <button
+                            onClick={() => handleDelete(user._id)}
+                            className="p-3 rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 transition-all active:scale-90"
+                            title="Revoke Access"
+                          >
+                            <Trash2 size={18} strokeWidth={2} />
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
                 ) : (
                   <tr>
                     <td colSpan="4" className="p-20 text-center">
